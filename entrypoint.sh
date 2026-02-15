@@ -1,18 +1,18 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
+set -eu
 
-set -euo pipefail
+# env:
+#   ALLOW_REMOTE_ACCESS = yes/no (default: no)
+#   EXTRA_FLAGS = additional args (default: empty)
 
-allow_remote_access="${ALLOW_REMOTE_ACCESS:-no}"
-extra_flags="${EXTRA_FLAGS:-}"
+ALLOW_REMOTE_ACCESS="${ALLOW_REMOTE_ACCESS:-no}"
+EXTRA_FLAGS="${EXTRA_FLAGS:-}"
 
-if [[ "${allow_remote_access,,}" =~ ^(yes|true|1)$ ]]; then
-  extra_flags="${extra_flags} --bind-all"
-fi
+# If remote access is allowed, bind to all interfaces.
+case "$(echo "$ALLOW_REMOTE_ACCESS" | tr '[:upper:]' '[:lower:]')" in
+  1|true|yes|y) EXTRA_FLAGS="$EXTRA_FLAGS --bind-all" ;;
+esac
 
-extra_flags=(${extra_flags})
-
-exec \
-  /app/start-engine \
-  --client-console \
-  "${extra_flags[@]}" \
-  "$@"
+# Run the actual app.
+# NOTE: if your app binary/name differs, change it here.
+exec /app/start-engine --client-console $EXTRA_FLAGS "$@"
