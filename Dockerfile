@@ -1,64 +1,33 @@
 # syntax=docker/dockerfile:1
 
-FROM docker.io/library/python:3.10-slim-bookworm@sha256:034724ef64585eeb0e82385e9aabcbeabfe5f7cae2c2dcedb1da95114372b6d7
+FROM ubuntu:22.04
 
-LABEL \
-    maintainer="kalpakus-web <me@kalpakus-web.com>" \
-    org.opencontainers.image.title="acestream-http-proxy" \
-    org.opencontainers.image.description="Stream AceStream sources without needing to install AceStream player" \
-    org.opencontainers.image.authors="kalpakus-web <me@kalpakus-web.com>" \
-    org.opencontainers.image.url="https://github.com/kalpakus-web/acestream-http-proxy" \
-    org.opencontainers.image.vendor="https://github.com/kalpakus-web"
+ENV DEBIAN_FRONTEND=noninteractive
 
-ENV DEBIAN_FRONTEND="noninteractive" \
-    CRYPTOGRAPHY_DONT_BUILD_RUST=1 \
-    PIP_BREAK_SYSTEM_PACKAGES=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_ROOT_USER_ACTION=ignore \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    UV_NO_CACHE=true \
-    UV_SYSTEM_PYTHON=true \
-    PYTHON_EGG_CACHE=/.cache
+# --- deps ---
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      ca-certificates curl bash \
+ && rm -rf /var/lib/apt/lists/*
 
-ENV VERSION="3.2.11_ubuntu_22.04_x86_64_py3.10" \
-    ALLOW_REMOTE_ACCESS="no" \
-    EXTRA_FLAGS=''
+# --- catatonit (tiny init) ---
+# In your current image ENTRYPOINT expects /usr/bin/catatonit
+# Install catatonit from Ubuntu repo:
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends catatonit \
+ && rm -rf /var/lib/apt/lists/*
 
-USER root
+# --- app files ---
 WORKDIR /app
+COPY . /app
 
-# hadolint ignore=DL4006,DL3008,DL3013
-RUN \
-    apt-get update \
-    && \
-    apt-get install --no-install-recommends --no-install-suggests -y \
-        bash \
-        ca-certificates \
-        catatonit \
-        curl \
-        nano \
-        libgirepository1.0-dev \
-    && groupadd --gid 1000 appuser \
-    && useradd --uid 1000 --gid 1000 -m appuser \
-    && mkdir -p /app \
-    && mkdir -p /.cache \
-    && curl -fsSL "https://download.acestream.media/linux/acestream_${VERSION}.tar.gz" \
-        | tar xzf - -C /app \
-    && pip install uv \
-    && uv pip install --requirement /app/requirements.txt \
-    && chown -R appuser:appuser /.cache /app && chmod -R 755 /app \
-    && pip uninstall --yes uv \
-    && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
-    && apt-get autoremove -y \
-    && apt-get clean \
-    && rm -rf /tmp/* /var/lib/apt/lists/* /var/tmp/
+# Ensure entrypoint exists at root path and is executable + LF line endings
+RUN cp /app/entrypoint.sh /entrypoint.sh \
+ && sed -i 's/\r$//' /entrypoint.sh \
+ && chmod +x /entrypoint.sh
 
-COPY . /
+# (Optional) if you have a build step, add it here.
 
-USER appuser
+EXPOSE 6878
 
-ENTRYPOINT ["/usr/bin/catatonit", "--", "/entrypoint.sh"]
-
-EXPOSE 6878/tcp
+ENTRYPOINT ["/usr/bin/catatonit","--","/entrypoint.sh"]
