@@ -24,6 +24,10 @@ You are then able to access AceStreams by pointing your favorite media player
 (VLC, IINA, etc.) to either of the below URLs, depending on the desired
 streaming protocol.
 
+```console
+
+ http://localhost:8000/playlist?engine_ip=192.168.0.244&engine_port=6878
+
 For HLS:
 ```console
 http://127.0.0.1:6878/ace/manifest.m3u8?id=STREAM_ID
